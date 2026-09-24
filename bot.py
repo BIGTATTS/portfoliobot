@@ -43,8 +43,20 @@ async def heartbeat_job(context: ContextTypes.DEFAULT_TYPE):
         redis_client.set("heartbeat:portfoliobot", dt.datetime.now(ZoneInfo("UTC")).isoformat(), ex=600)
     except Exception:
         pass
-_CIK_CACHE = {}
 
+async def startup_notification(context: ContextTypes.DEFAULT_TYPE):
+    owner_id = os.environ.get("OWNER_CHAT_ID")
+    if not owner_id:
+        return
+    try:
+        await context.bot.send_message(
+            chat_id=int(owner_id),
+            text="\u2705 portfoliobot just started up"
+        )
+    except Exception:
+        pass
+
+_CIK_CACHE = {}
 def get_price(ticker: str):
     cache_key = f"price:{ticker}"
     cached = cache_get(cache_key)
@@ -202,6 +214,7 @@ app = Application.builder().token(os.environ["BOT_TOKEN"]).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("portfolio", portfolio))
 
+app.job_queue.run_once(startup_notification, when=3)
 app.job_queue.run_repeating(heartbeat_job, interval=120, first=5)
 
 app.run_polling()
